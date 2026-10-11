@@ -1,0 +1,7 @@
+{
+  "name": "Yes67 BI Agent",
+  "description": "AI Reporting and Business Intelligence agent for SMEs. Deterministic KPI engine, anomaly detection, multilingual insights, and automated reports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
