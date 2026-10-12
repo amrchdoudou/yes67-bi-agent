@@ -121,8 +121,26 @@ The Gemini LLM (`gemini-3.8-flash`) **never calculates numbers in its head**; it
    ```
    Starts `server.ts` on port 3000 hosting both the API routes and the client via Vite.
 
-4. **Production Build**:
+4. **Production Build & Local Production Run**:
    ```bash
    npm run build
    npm start
    ```
+
+---
+
+## ☁️ Deploying on Render
+
+When deploying as a **Web Service** on Render:
+
+1. **Service Settings**:
+   - **Environment**: `Node`
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npm start`
+   *(Or connect your repo and Render will automatically detect `render.yaml`)*
+
+2. **Environment Variables**:
+   In Render Dashboard > **Environment**:
+   - `NODE_ENV`: `production`
+   - `GEMINI_API_KEY`: `your_gemini_api_key` *(obtained from Google AI Studio)*
+   *(Note: `PORT` is automatically injected by Render, and the server binds to it dynamically).*

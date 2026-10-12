@@ -1,22 +1,26 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import { GoogleGenAI, Type, FunctionDeclaration, Tool } from '@google/genai';
-import { createServer as createViteServer } from 'vite';
 
 dotenv.config();
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
+function getAI(): GoogleGenAI | null {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  return new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      },
     },
-  },
-});
+  });
+}
 
 const MODEL_NAME = 'gemini-3.8-flash';
 
@@ -175,6 +179,13 @@ function executeDeterministicTool(name: string, args: any, contextData: any) {
 // 1. Endpoint: AI Executive Insights Generation
 app.post('/api/ai/insights', async (req, res) => {
   try {
+    const ai = getAI();
+    if (!ai) {
+      return res.status(400).json({
+        error: 'GEMINI_API_KEY is not set. Please add GEMINI_API_KEY to your Render environment variables (Dashboard > Environment).',
+      });
+    }
+
     const { companyName, currency, language = 'en', kpiSummary, anomalies, trend } = req.body;
 
     const langInstructions: Record<string, string> = {
@@ -247,6 +258,13 @@ Do NOT invent numbers.`;
 // 2. Endpoint: Ask the Agent (Chat with deterministic tool calling)
 app.post('/api/ai/chat', async (req, res) => {
   try {
+    const ai = getAI();
+    if (!ai) {
+      return res.status(400).json({
+        error: 'GEMINI_API_KEY is not set. Please add GEMINI_API_KEY to your Render environment variables (Dashboard > Environment).',
+      });
+    }
+
     const { message, language = 'en', contextData = {}, history = [] } = req.body;
 
     const langNote =
@@ -340,14 +358,25 @@ app.get('/api/health', (req, res) => {
 });
 
 // Setup Vite middleware or static serving
-const PORT = 3000;
+const PORT = process.env.K_SERVICE
+  ? 3000
+  : (process.env.PORT ? parseInt(process.env.PORT, 10) : 3000);
+
 async function startServer() {
-  if (process.env.NODE_ENV === 'production') {
-    app.use(express.static('dist'));
+  const distPath = path.resolve('dist');
+  const hasDist = fs.existsSync(path.join(distPath, 'index.html'));
+  const isProduction = process.env.NODE_ENV === 'production' || hasDist;
+
+  if (isProduction) {
+    app.use(express.static(distPath));
     app.get('*', (req, res) => {
-      res.sendFile(path.resolve('dist', 'index.html'));
+      if (req.path.startsWith('/api')) {
+        return res.status(404).json({ error: 'Endpoint not found' });
+      }
+      res.sendFile(path.join(distPath, 'index.html'));
     });
   } else {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -356,7 +385,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Yes67 BI Agent server running on http://0.0.0.0:${PORT}`);
+    console.log(`Yes67 BI Agent server running on http://0.0.0.0:${PORT} (Production mode: ${isProduction})`);
   });
 }
 
